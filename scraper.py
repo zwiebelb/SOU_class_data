@@ -1,3 +1,4 @@
+#imports
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
@@ -16,8 +17,10 @@ class WebScraper:
         self.select = None
     
     def get_options_from_dropdown(self, dropdown_id, start_option):
+    # Load the webpage and wait for the dropdown element to be present
         self.driver.get(self.url)
         select = Select(WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.ID, dropdown_id))))
+        # Get all the options from the dropdown
         options = [option.text for option in select.options]
         start_index = options.index(start_option)
         options = options[start_index:]
@@ -25,17 +28,19 @@ class WebScraper:
         options = [option for option in options if int(option.split()[-1]) >= 2006 and int(option.split()[-1]) <= 2023]
         self.select = select
         return options
-    
+
     def scrape_courses_for_term(self, term):
+        # Select the given term from the dropdown and click the search button
         self.select.select_by_visible_text(term)
         button = self.driver.find_element(By.ID, 'cls-search')
         button.click()
-        time.sleep(10)
-        html = self.driver.page_source
-        soup = BeautifulSoup(html, 'html.parser')
-        courses = soup.find('tbody').find_all('tr')
+        time.sleep(10)  # Wait for the webpage to load
+        html = self.driver.page_source  # Get the HTML source code of the webpage
+        soup = BeautifulSoup(html, 'html.parser')  # Parse the HTML using BeautifulSoup
+        courses = soup.find('tbody').find_all('tr')  # Find all course rows in the table
         data = []
         for course in courses:
+            # Extract information about each course from its table row
             crn = course.find('td', {'data-label': 'CRN'})
             if crn is not None:
                 crn = crn.text.strip()
@@ -57,15 +62,13 @@ class WebScraper:
             data.append([term, crn, subject, number, title, credits, instructor])
         return data
 
-
-
 class DatabaseManager:
     def __init__(self, database_name):
         self.database_name = database_name
-        self.conn = sqlite3.connect(self.database_name)
+        self.conn = sqlite3.connect(self.database_name) #connect to SQLite database
     
     def write_to_database(self, data):
-        df = pd.DataFrame(data, columns=['Term', 'CRN', 'Subject', 'Number', 'Title', 'Credits', 'Instructor'])
+        df = pd.DataFrame(data, columns=['Term', 'CRN', 'Subject', 'Number', 'Title', 'Credits', 'Instructor'])  # Write data to SQLite table named "courses"
         df.to_sql('courses', self.conn, if_exists='replace')
     
     def close_database(self):
